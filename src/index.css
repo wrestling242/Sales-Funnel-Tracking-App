@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "SF Pro Text", -apple-system, sans-serif;
+  
+  --color-primary: #111827;
+  --color-secondary: #6B7280;
+  --color-surface-bg: #F3F4F6;
+  --color-surface-card: #FFFFFF;
+  --color-border-subtle: #E5E7EB;
+  
+  --radius-card: 16px;
+  --radius-button: 8px;
+}
+
+@layer base {
+  body {
+    @apply bg-surface-bg text-primary font-sans antialiased;
+  }
+}
+
+@layer components {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .clean-panel {
+    @apply bg-surface-card border border-border-subtle rounded-[--radius-card];
+  }
+}
+
+@theme {
+  --font-sans: "Inter", "SF Pro Text", -apple-system, sans-serif;
+  
+  --color-primary: #111827;
+  --color-secondary: #6B7280;
+  --color-surface-bg: #F3F4F6;
+  --color-surface-card: #FFFFFF;
+  --color-border-subtle: #E5E7EB;
+  
+  --radius-card: 16px;
+  --radius-button: 8px;
+}
+
+@layer base {
+  body {
+    @apply bg-surface-bg text-primary font-sans antialiased;
+  }
+}
+
+@layer components {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .clean-panel {
+    @apply bg-surface-card border border-border-subtle rounded-[--radius-card];
+  }
+}
