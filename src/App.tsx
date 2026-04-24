@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -40,6 +40,7 @@ function cn(...inputs: ClassValue[]) {
 interface FunnelEntry {
   id?: string;
   created_at?: string;
+  period: 'daily' | 'weekly';
   dms: number;
   calls: number;
   appointments: number;
@@ -48,7 +49,151 @@ interface FunnelEntry {
   orders: number;
 }
 
+interface FunnelTarget {
+  id?: number;
+  type: 'daily' | 'monthly';
+  dms: number;
+  calls: number;
+  appointments: number;
+  meetings: number;
+  negotiations: number;
+  orders: number;
+  updated_at?: string;
+}
+
+// --- Constants ---
+
+const FUNNEL_STAGES = [
+  { name: 'Direct Outreach', key: 'dms' },
+  { name: 'Initial Qualification', key: 'calls' },
+  { name: 'Appointment Secured', key: 'appointments' },
+  { name: 'Solution Presentation', key: 'meetings' },
+  { name: 'Value Proposal', key: 'negotiations' },
+  { name: 'Contract Closing (KGI)', key: 'orders' },
+];
+
 // --- Components ---
+
+const ComparisonTable = ({ title, entries, label }: { title: string, entries: FunnelEntry[], label: string }) => {
+  return (
+    <div className="bg-white border border-border-subtle rounded-[24px] overflow-hidden shadow-sm">
+      <div className="px-8 py-5 bg-slate-50 border-b border-border-subtle flex justify-between items-center">
+        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{title}</h3>
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-[10px] font-bold text-slate-400">NODE {label}</span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[1200px]">
+          <thead>
+            <tr className="bg-slate-50/50">
+              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle bg-slate-50/30 w-32">Date</th>
+              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle bg-slate-50/30 w-44">Intelligence Data</th>
+              {FUNNEL_STAGES.map((p, i) => (
+                <th key={i} className={cn(
+                  "px-6 py-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center border-r border-border-subtle last:border-r-0 min-w-[140px]",
+                  i === 0 && "bg-slate-50/10"
+                )}>
+                  {p.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border-subtle">
+            {entries.length === 0 ? (
+              <tr>
+                <td colSpan={FUNNEL_STAGES.length + 2} className="px-8 py-20 text-center text-slate-400 text-sm font-medium italic">
+                  No operational data deployed to node.
+                </td>
+              </tr>
+            ) : (
+              entries.map((entry, entryIndex) => {
+                const dateStr = new Date(entry.created_at!).toLocaleDateString('en-US', { 
+                  month: 'numeric', 
+                  day: 'numeric', 
+                  year: '2-digit' 
+                });
+
+                return (
+                  <Fragment key={entry.id || entryIndex}>
+                    {/* Frequency Row */}
+                    <tr className="group hover:bg-slate-50/30 transition-colors">
+                      <td rowSpan={2} className="px-6 py-5 text-xs font-bold text-slate-500 border-r border-border-subtle bg-slate-50/20 text-center">
+                        {dateStr}
+                      </td>
+                      <td className="px-6 py-5 text-xs font-bold text-primary border-r border-border-subtle bg-slate-50/10">Total Frequency</td>
+                      {FUNNEL_STAGES.map((p, i) => (
+                        <td key={i} className="px-6 py-5 text-sm tabular-nums text-center font-bold text-primary border-r border-border-subtle last:border-r-0 bg-white group-hover:bg-transparent">
+                          {(entry as any)[p.key]}
+                        </td>
+                      ))}
+                    </tr>
+                    {/* Conversion Row */}
+                    <tr className="group hover:bg-slate-50/30 transition-colors border-b-2 border-slate-100 last:border-b-0">
+                      <td className="px-6 py-5 text-xs font-semibold text-secondary border-r border-border-subtle">Conversion Rate</td>
+                      {FUNNEL_STAGES.map((p, i) => {
+                        const currentVal = (entry as any)[p.key];
+                        const prevPhase = FUNNEL_STAGES[i - 1];
+                        const prevVal = prevPhase ? (entry as any)[prevPhase.key] : null;
+                        const conversion = prevVal !== null && prevVal > 0 
+                          ? (currentVal / prevVal) * 100 
+                          : 0;
+                        
+                        return (
+                          <td key={i} className="px-6 py-5 text-sm tabular-nums text-center text-slate-500 border-r border-border-subtle last:border-r-0">
+                            {prevPhase ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className={cn(
+                                  "font-bold",
+                                  conversion > 50 ? "text-emerald-500" : conversion > 20 ? "text-primary" : "text-slate-400"
+                                )}>
+                                  {conversion.toFixed(1)}%
+                                </span>
+                                <span className="text-[9px] text-slate-400 uppercase tracking-tighter">to {p.name.split(' ').pop()}</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </Fragment>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const FunnelPage = ({ entries }: { entries: FunnelEntry[] }) => {
+  const dailyEntries = [...entries]
+    .filter(e => e.period === 'daily')
+    .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime());
+
+  return (
+    <div className="space-y-8 pb-10 pt-4">
+      <header>
+        <h2 className="text-3xl font-semibold tracking-tight text-primary">Daily Activity Funnel</h2>
+        <p className="text-sm font-medium text-slate-500">Sales Performance Dashboard</p>
+        <p className="text-secondary mt-1">Stochastic analytics of daily lead-to-order probability transitions.</p>
+      </header>
+      <div className="grid grid-cols-1 gap-10">
+        <ComparisonTable 
+          title="Daily Activity Logs" 
+          label="Alpha"
+          entries={dailyEntries}
+        />
+      </div>
+    </div>
+  );
+};
+
+
 
 const SummaryCard = ({ title, value, trend, isPositive }: any) => (
   <div className="bg-white border border-border-subtle p-6 rounded-[16px]">
@@ -67,104 +212,193 @@ const SummaryCard = ({ title, value, trend, isPositive }: any) => (
   </div>
 );
 
-const StatsPage = ({ entries }: { entries: FunnelEntry[] }) => {
-  const activityData = [
-    { day: 'MON', calls: 45, dms: 60 },
-    { day: 'TUE', calls: 55, dms: 75 },
-    { day: 'WED', calls: 85, dms: 65 },
-    { day: 'THU', calls: 40, dms: 90 },
-    { day: 'FRI', calls: 95, dms: 80 },
-  ];
+// --- Removed redundant FUNNEL_STAGES definition here ---
 
-  const totalDMs = entries.reduce((acc, curr) => acc + (curr.dms || 0), 0);
-  const totalCalls = entries.reduce((acc, curr) => acc + (curr.calls || 0), 0);
-  const totalMeetings = entries.reduce((acc, curr) => acc + (curr.meetings || 0), 0);
+const StatsPage = ({ entries, targets, onUpdateTarget }: { 
+  entries: FunnelEntry[], 
+  targets: FunnelTarget[],
+  onUpdateTarget: (target: FunnelTarget) => Promise<void>
+}) => {
+  const now = new Date();
+  const [editingTarget, setEditingTarget] = useState<FunnelTarget | null>(null);
+  
+  const getAggregates = (list: FunnelEntry[]) => ({
+    dms: list.reduce((a, b) => a + Number(b.dms || 0), 0),
+    calls: list.reduce((a, b) => a + Number(b.calls || 0), 0),
+    appointments: list.reduce((a, b) => a + Number(b.appointments || 0), 0),
+    meetings: list.reduce((a, b) => a + Number(b.meetings || 0), 0),
+    negotiations: list.reduce((a, b) => a + Number(b.negotiations || 0), 0),
+    orders: list.reduce((a, b) => a + Number(b.orders || 0), 0),
+  });
+
+  const dailyTarget = targets.find(t => t.type === 'daily') || { type: 'daily', dms: 0, calls: 0, appointments: 0, meetings: 0, negotiations: 0, orders: 0 } as FunnelTarget;
+  const monthlyTarget = targets.find(t => t.type === 'monthly') || { type: 'monthly', dms: 0, calls: 0, appointments: 0, meetings: 0, negotiations: 0, orders: 0 } as FunnelTarget;
+
+  const todayEntries = entries.filter(e => new Date(e.created_at!).toDateString() === now.toDateString());
+  const monthEntries = entries.filter(e => {
+    const d = new Date(e.created_at!);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  const today = getAggregates(todayEntries);
+  const month = getAggregates(monthEntries);
+  const total = getAggregates(entries);
+
+  const handleSaveTarget = async () => {
+    if (editingTarget) {
+      await onUpdateTarget(editingTarget);
+      setEditingTarget(null);
+    }
+  };
+
+  const renderKPIRow = (title: string, data: any, options: { 
+    isConversion?: boolean, 
+    subtext?: string, 
+    isEditable?: boolean, 
+    targetType?: 'daily' | 'monthly',
+    compareWithTarget?: any 
+  } = {}) => {
+    const { isConversion = false, subtext, isEditable = false, targetType, compareWithTarget } = options;
+    const isEditing = editingTarget && editingTarget.type === targetType;
+
+    return (
+      <tr className={cn(
+        "group hover:bg-slate-50/50 transition-colors relative", 
+        isConversion ? "bg-slate-50/20" : "",
+        isEditing ? "bg-slate-100/50" : ""
+      )}>
+        <td className="px-8 py-5 border-r border-border-subtle">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className={cn("text-xs font-bold", isConversion ? "text-secondary" : "text-primary")}>{title}</span>
+              {isEditable && !isEditing && (
+                <button 
+                  onClick={() => setEditingTarget(targetType === 'monthly' ? monthlyTarget : dailyTarget)}
+                  className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <Edit3 size={12} />
+                </button>
+              )}
+              {isEditing && (
+                <button 
+                  onClick={handleSaveTarget}
+                  className="px-2 py-0.5 rounded bg-primary text-white text-[10px] font-bold hover:bg-slate-800 transition-colors"
+                >
+                  SAVE
+                </button>
+              )}
+            </div>
+            {subtext && <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter mt-0.5">{subtext}</span>}
+          </div>
+        </td>
+        {FUNNEL_STAGES.map((s, i) => {
+          const val = (isEditing ? (editingTarget as any)[s.key] : (data as any)[s.key]);
+          const prevKey = FUNNEL_STAGES[i-1]?.key as string;
+          const prevVal = prevKey ? (data as any)[prevKey] : null;
+          
+          let display: any = "";
+          let colorClass = "";
+
+          if (isConversion && compareWithTarget) {
+            const currentActual = Number(val || 0);
+            const prevActual = Number(prevVal || 0);
+            const actualRate = prevActual > 0 ? (currentActual / prevActual) : 0;
+
+            const currentTarget = Number((compareWithTarget as any)[s.key] || 0);
+            const targetPrevKey = FUNNEL_STAGES[i-1]?.key as string;
+            const prevTarget = targetPrevKey ? Number((compareWithTarget as any)[targetPrevKey] || 0) : 0;
+            const targetRate = prevTarget > 0 ? (currentTarget / prevTarget) : 0;
+
+            if (targetRate > 0) {
+              const progress = (actualRate / targetRate) * 100;
+              if (progress < 33.3) colorClass = "text-rose-500";
+              else if (progress < 66.6) colorClass = "text-amber-500";
+              else colorClass = "text-emerald-500";
+            }
+          }
+
+          if (isConversion) {
+            const conv = (prevVal && prevVal > 0) ? (val / prevVal) * 100 : 0;
+            display = prevVal !== null ? `${conv.toFixed(1)}%` : "—";
+          } else if (isEditing) {
+            display = (
+              <input 
+                type="number"
+                step="0.1"
+                value={val || ''}
+                onChange={(e) => setEditingTarget(prev => prev ? ({ ...prev, [s.key]: parseFloat(e.target.value) || 0 }) : null)}
+                className="w-full bg-white border border-border-subtle rounded-lg px-2 py-1 text-center font-bold text-primary focus:outline-none focus:border-primary text-sm shadow-sm"
+              />
+            );
+          } else {
+            display = val.toLocaleString(undefined, { maximumFractionDigits: 2 });
+          }
+
+          return (
+            <td key={i} className="px-6 py-5 text-center border-r border-border-subtle last:border-r-0">
+              <span className={cn(
+                "text-sm tabular-nums font-bold",
+                isConversion 
+                  ? (colorClass || "text-slate-500 font-semibold") 
+                  : "text-primary",
+                !isConversion && !isEditing && val > 0 && "text-primary"
+              )}>
+                {display}
+              </span>
+            </td>
+          );
+        })}
+      </tr>
+    );
+  };
 
   return (
     <div className="space-y-8 pb-10">
-      <header className="flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-semibold tracking-tight text-primary">Overview</h2>
-          <p className="text-secondary mt-1">Welcome back. Here's your performance summary.</p>
-        </div>
-        <div className="flex bg-slate-200/50 p-1 rounded-xl">
-          <button className="px-4 py-1.5 text-xs font-semibold bg-white text-primary rounded-lg border border-border-subtle shadow-sm">WEEKLY</button>
-          <button className="px-4 py-1.5 text-xs font-semibold text-secondary hover:text-primary rounded-lg transition-colors">MONTHLY</button>
-        </div>
+      <header>
+        <h2 className="text-3xl font-semibold tracking-tight text-primary">Overview</h2>
+        <p className="text-sm font-medium text-slate-500">Sales Performance Dashboard</p>
+        <p className="text-secondary mt-1">Operational Diagnostics & Strategic KPI Dashboard.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <SummaryCard title="Direct Messages" value={totalDMs} trend="2.4%" isPositive={true} />
-        <SummaryCard title="Outbound Calls" value={totalCalls} trend="8.1%" isPositive={true} />
-        <SummaryCard title="Meetings Held" value={totalMeetings} trend="12.1%" isPositive={false} />
-        <SummaryCard title="Pipeline Value" value="$2.4M" trend="24.5%" isPositive={true} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-border-subtle rounded-[16px] p-6">
-          <h3 className="text-base font-semibold text-primary mb-6">Activity Velocity</h3>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activityData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                <XAxis 
-                  dataKey="day" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fontWeight: 500, fill: '#9CA3AF' }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fontWeight: 500, fill: '#9CA3AF' }}
-                />
-                <Tooltip 
-                  cursor={{ fill: '#F9FAFB' }}
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar dataKey="calls" fill="#111827" radius={[4, 4, 0, 0]} barSize={20} />
-                <Bar dataKey="dms" fill="#E5E7EB" radius={[4, 4, 0, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      <div className="bg-white border border-border-subtle rounded-[24px] overflow-hidden shadow-sm">
+        <div className="px-8 py-5 bg-slate-50 border-b border-border-subtle flex justify-between items-center">
+          <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Funnel KPI Architecture</h3>
+          <p className="text-[9px] text-slate-400 font-bold uppercase">Click edit to update targets</p>
         </div>
-
-        <div className="bg-white border border-border-subtle rounded-[16px] p-6 flex flex-col">
-          <h3 className="text-base font-semibold text-primary mb-6">Execution Force Feed</h3>
-          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-            {entries.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">No entries recorded yet.</p>
-            ) : (
-              entries.map((row, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border-subtle hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary">
-                      <CheckCircle2 size={18} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">Data Sync</div>
-                      <div className="text-xs text-slate-400">{new Date(row.created_at!).toLocaleDateString()} • {row.meetings} sessions</div>
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold tabular-nums">
-                    CAL: {row.calls}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="mt-auto pt-6">
-            <div className="p-4 rounded-xl bg-slate-50 border border-border-subtle flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-lg border border-border-subtle flex items-center justify-center text-primary shadow-sm">
-                <Award size={20} />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Efficiency Node</p>
-                <p className="text-sm font-semibold">Active Pipeline Deployment</p>
-              </div>
-            </div>
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[1100px]">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-border-subtle">
+                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle w-56">Intelligence Layer</th>
+                {FUNNEL_STAGES.map((s, i) => (
+                  <th key={i} className="px-6 py-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center border-r border-border-subtle last:border-r-0">
+                    {s.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {renderKPIRow("Monthly KPI", monthlyTarget, { subtext: "Strategic Target", isEditable: true, targetType: 'monthly' })}
+              {renderKPIRow("Monthly Progress", month, { subtext: `Period ${now.getMonth() + 1}/${now.getFullYear()}` })}
+              {renderKPIRow("Monthly Conversion Performance", month, { isConversion: true, subtext: "Strategic Yield", compareWithTarget: monthlyTarget })}
+              <tr className="bg-slate-100/30 h-1" />
+              {renderKPIRow("Daily KPI", dailyTarget, { subtext: "Daily Objective", isEditable: true, targetType: 'daily' })}
+              {renderKPIRow("Today's Results", today, { subtext: "Real-time Delta" })}
+              <tr className="bg-slate-100/30 h-1" />
+              {[...monthEntries].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()).slice(0, 5).map((entry, idx) => {
+                const date = new Date(entry.created_at!);
+                const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                return (
+                  <Fragment key={entry.id || idx}>
+                    {renderKPIRow(`${label} Results`, entry, { subtext: "LOGGED PRODUCTION" })}
+                  </Fragment>
+                );
+              })}
+              <tr className="bg-slate-100/30 h-1" />
+              {renderKPIRow("Running Total", total, { subtext: "Cumulative Force" })}
+              {renderKPIRow("Running Conversion Rate", total, { isConversion: true, subtext: "Node Integrity", compareWithTarget: monthlyTarget })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -173,6 +407,8 @@ const StatsPage = ({ entries }: { entries: FunnelEntry[] }) => {
 
 const EntryPage = ({ onSave }: { onSave: (data: FunnelEntry) => Promise<void> }) => {
   const [formData, setFormData] = useState<FunnelEntry>({
+    period: 'daily',
+    created_at: new Date().toISOString().split('T')[0],
     dms: 0,
     calls: 0,
     appointments: 0,
@@ -184,43 +420,69 @@ const EntryPage = ({ onSave }: { onSave: (data: FunnelEntry) => Promise<void> })
 
   const handleSubmit = async () => {
     setIsSaving(true);
-    await onSave(formData);
+    // Ensure we send back a proper ISO string if the user picked a date
+    const finalData = {
+      ...formData,
+      created_at: formData.created_at ? new Date(formData.created_at).toISOString() : undefined
+    };
+    await onSave(finalData);
     setIsSaving(false);
-    setFormData({ dms: 0, calls: 0, appointments: 0, meetings: 0, negotiations: 0, orders: 0 });
+    setFormData({ 
+      period: 'daily', 
+      created_at: new Date().toISOString().split('T')[0],
+      dms: 0, 
+      calls: 0, 
+      appointments: 0, 
+      meetings: 0, 
+      negotiations: 0, 
+      orders: 0 
+    });
   };
 
   const handleChange = (field: keyof FunnelEntry, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: parseInt(value) || 0 }));
+    if (field === 'period') {
+      setFormData(prev => ({ ...prev, [field]: value as 'daily' | 'weekly' }));
+    } else if (field === 'created_at') {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
+    }
   };
 
   return (
     <div className="space-y-8 pb-10 max-w-5xl mx-auto">
-      <header>
-        <h2 className="text-3xl font-semibold tracking-tight text-primary">Intelligence Node</h2>
-        <p className="text-secondary mt-1">Manual data entry for funnel activity metrics.</p>
+      <header className="flex justify-between items-start">
+        <div>
+          <h2 className="text-3xl font-semibold tracking-tight text-primary">Intelligence Node</h2>
+          <p className="text-sm font-medium text-slate-500">Sales Performance Dashboard</p>
+          <p className="text-secondary mt-1">Manual data entry for funnel activity metrics.</p>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-8 bg-white border border-border-subtle rounded-[16px] p-8">
+      <div className="grid grid-cols-1 gap-6">
+        <div className="bg-white border border-border-subtle rounded-[16px] p-8">
           <div className="flex justify-between items-center mb-10">
             <h3 className="text-base font-semibold text-primary">Funnel Metrics</h3>
-            <span className="text-xs font-medium text-slate-400">INPUT SEQUENCE</span>
+            <div className="flex items-center gap-3">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">DEPLOYMENT DATE</label>
+              <input 
+                type="date"
+                value={formData.created_at || ''}
+                onChange={(e) => handleChange('created_at', e.target.value)}
+                className="bg-slate-50 border border-border-subtle rounded-lg px-3 py-1 text-xs font-semibold focus:outline-none focus:border-primary"
+              />
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
-            {[
-              { label: 'Direct Messages', field: 'dms' },
-              { label: 'Phone Calls', field: 'calls' },
-              { label: 'Appointments', field: 'appointments' },
-              { label: 'Meetings', field: 'meetings' },
-            ].map((item) => (
-              <div key={item.field} className="group">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-8">
+            {FUNNEL_STAGES.map((item) => (
+              <div key={item.key} className="group">
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 group-focus-within:text-primary">
-                  {item.label}
+                  {item.name}
                 </label>
                 <input 
                   type="number" 
-                  value={formData[item.field as keyof FunnelEntry] || ''}
-                  onChange={(e) => handleChange(item.field as keyof FunnelEntry, e.target.value)}
+                  value={(formData as any)[item.key] || ''}
+                  onChange={(e) => handleChange(item.key as keyof FunnelEntry, e.target.value)}
                   placeholder="0"
                   className="w-full bg-slate-50 border border-border-subtle rounded-xl px-4 py-3 focus:outline-none focus:border-primary focus:bg-white text-sm transition-all"
                 />
@@ -229,44 +491,10 @@ const EntryPage = ({ onSave }: { onSave: (data: FunnelEntry) => Promise<void> })
           </div>
         </div>
 
-        <div className="md:col-span-4 bg-white border border-border-subtle rounded-[16px] p-8 flex flex-col">
-          <h3 className="text-base font-semibold text-primary mb-6">Target Logic</h3>
-          <div className="space-y-4 flex-1">
-            <div className="p-4 rounded-xl bg-slate-50 border border-border-subtle">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Current Node Quota</p>
-              <p className="text-2xl font-bold text-primary tabular-nums">$124,500</p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-border-subtle">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Temporal Offset</p>
-              <p className="text-2xl font-bold text-primary tabular-nums">07 Days</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="md:col-span-12 bg-white border border-border-subtle rounded-[16px] p-8">
-          <h3 className="text-base font-semibold text-primary mb-8">Pipeline Finalization</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 mb-10">
-            {[
-              { label: 'Negotiations', field: 'negotiations' },
-              { label: 'Confirmed Orders', field: 'orders' },
-            ].map((item) => (
-              <div key={item.field} className="group">
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 group-focus-within:text-primary">
-                  {item.label}
-                </label>
-                <input 
-                  type="number"
-                  value={formData[item.field as keyof FunnelEntry] || ''}
-                  onChange={(e) => handleChange(item.field as keyof FunnelEntry, e.target.value)}
-                  placeholder="0"
-                  className="w-full bg-slate-50 border border-border-subtle rounded-xl px-4 py-3 focus:outline-none focus:border-primary focus:bg-white text-sm transition-all"
-                />
-              </div>
-            ))}
-          </div>
+        <div className="bg-white border border-border-subtle rounded-[16px] p-8">
           <div className="flex justify-end gap-3">
             <button 
-              onClick={() => setFormData({ dms: 0, calls: 0, appointments: 0, meetings: 0, negotiations: 0, orders: 0 })}
+              onClick={() => setFormData({ period: 'daily', dms: 0, calls: 0, appointments: 0, meetings: 0, negotiations: 0, orders: 0 })}
               className="px-6 py-2.5 rounded-xl border border-border-subtle font-semibold text-sm hover:bg-slate-50 transition-colors"
             >
               Flush
@@ -285,10 +513,11 @@ const EntryPage = ({ onSave }: { onSave: (data: FunnelEntry) => Promise<void> })
   );
 };
 
-const SettingsPage = () => (
+const SettingsPage = ({ entries }: { entries: FunnelEntry[] }) => (
   <div className="space-y-8 pb-10 max-w-3xl mx-auto">
     <header>
       <h2 className="text-3xl font-semibold tracking-tight text-primary">Configuration</h2>
+      <p className="text-sm font-medium text-slate-500">Sales Performance Dashboard</p>
       <p className="text-secondary mt-1">System parameters and database connectivity profiles.</p>
     </header>
     <div className="bg-white border border-border-subtle rounded-[16px] overflow-hidden">
@@ -313,6 +542,10 @@ const SettingsPage = () => (
           </div>
         </div>
         <div className="pt-6 border-t border-border-subtle flex justify-between items-center">
+          <span className="text-sm font-medium">Recorded Events</span>
+          <span className="text-xs font-bold tabular-nums text-slate-400">{entries.length} RECORDS</span>
+        </div>
+        <div className="pt-4 flex justify-between items-center">
           <span className="text-sm font-medium">Automatic Backups</span>
           <div className="w-10 h-5 bg-primary rounded-full relative">
             <div className="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full" />
@@ -337,29 +570,83 @@ const NavItem = ({ icon: Icon, label, active, onClick }: any) => (
 );
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'entry' | 'stats' | 'settings'>('stats');
+  const [activeTab, setActiveTab] = useState<'entry' | 'stats' | 'funnel' | 'settings'>('stats');
   const [entries, setEntries] = useState<FunnelEntry[]>([]);
+  const [targets, setTargets] = useState<FunnelTarget[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEntries();
+    fetchTargets();
   }, []);
 
   const fetchEntries = async () => {
     try {
       const res = await fetch('/api/entries');
-      const data = await res.json();
-      
       if (!res.ok) {
-        setDbError(data.message || data.error || 'API connection failure');
+        const errorData = await res.json().catch(() => ({}));
+        setDbError(errorData.message || errorData.error || `Server responded with ${res.status}`);
         return;
       }
-      
-      setEntries(data);
+      const data = await res.json();
+      setEntries(data.map((e: any) => ({
+        ...e,
+        dms: Number(e.dms || 0),
+        calls: Number(e.calls || 0),
+        appointments: Number(e.appointments || 0),
+        meetings: Number(e.meetings || 0),
+        negotiations: Number(e.negotiations || 0),
+        orders: Number(e.orders || 0),
+      })));
       setDbError(null);
     } catch (err: any) {
       console.error('Error fetching entries:', err);
       setDbError('Failed to connect to backend server.');
+    }
+  };
+
+  const fetchTargets = async () => {
+    try {
+      const res = await fetch('/api/targets');
+      if (res.ok) {
+        const data = await res.json();
+        setTargets(data.map((t: any) => ({
+          ...t,
+          dms: Number(t.dms || 0),
+          calls: Number(t.calls || 0),
+          appointments: Number(t.appointments || 0),
+          meetings: Number(t.meetings || 0),
+          negotiations: Number(t.negotiations || 0),
+          orders: Number(t.orders || 0),
+        })));
+      }
+    } catch (err) {
+      console.error('Error fetching targets:', err);
+    }
+  };
+
+  const handleUpdateTarget = async (target: FunnelTarget) => {
+    try {
+      const res = await fetch('/api/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(target)
+      });
+      if (res.ok) {
+        const updatedRaw = await res.json();
+        const updated = {
+          ...updatedRaw,
+          dms: Number(updatedRaw.dms || 0),
+          calls: Number(updatedRaw.calls || 0),
+          appointments: Number(updatedRaw.appointments || 0),
+          meetings: Number(updatedRaw.meetings || 0),
+          negotiations: Number(updatedRaw.negotiations || 0),
+          orders: Number(updatedRaw.orders || 0),
+        };
+        setTargets(prev => prev.map(t => t.type === updated.type ? updated : t));
+      }
+    } catch (err) {
+      console.error('Error updating target:', err);
     }
   };
 
@@ -371,13 +658,17 @@ export default function App() {
         body: JSON.stringify(formData)
       });
       
-      if (!res.ok) throw new Error('Failed to save to database');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || 'Failed to save to database');
+      }
+      
       const savedEntry = await res.json();
       setEntries(prev => [savedEntry, ...prev]);
       alert('Data successfully deployed to node.');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving entry:', err);
-      alert('Sync failure. Verify database configuration.');
+      alert(`Sync failure: ${err.message}`);
     }
   };
 
@@ -405,7 +696,12 @@ export default function App() {
             active={activeTab === 'entry'} 
             onClick={() => setActiveTab('entry')}
           />
-          <NavItem icon={Wallet} label="Pipeline" />
+          <NavItem 
+            icon={TrendingUp} 
+            label="Funnel" 
+            active={activeTab === 'funnel'}
+            onClick={() => setActiveTab('funnel')}
+          />
           <NavItem 
             icon={Settings} 
             label="Settings" 
@@ -465,9 +761,16 @@ export default function App() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              {activeTab === 'stats' && <StatsPage entries={entries} />}
+              {activeTab === 'stats' && (
+                <StatsPage 
+                  entries={entries} 
+                  targets={targets} 
+                  onUpdateTarget={handleUpdateTarget} 
+                />
+              )}
               {activeTab === 'entry' && <EntryPage onSave={handleSaveEntry} />}
-              {activeTab === 'settings' && <SettingsPage />}
+              {activeTab === 'funnel' && <FunnelPage entries={entries} />}
+              {activeTab === 'settings' && <SettingsPage entries={entries} />}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -485,6 +788,12 @@ export default function App() {
             className={cn("p-2 rounded-xl transition-all", activeTab === 'entry' ? "text-primary bg-slate-100" : "text-slate-400")}
           >
             <Edit3 size={24} />
+          </button>
+          <button 
+            onClick={() => setActiveTab('funnel')}
+            className={cn("p-2 rounded-xl transition-all", activeTab === 'funnel' ? "text-primary bg-slate-100" : "text-slate-400")}
+          >
+            <TrendingUp size={24} />
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
