@@ -106,19 +106,35 @@ export const ComparisonTable = ({ title, entries, label }: ComparisonTableProps)
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1200px]">
+        <table className="w-full text-left border-collapse min-w-full">
           <thead>
             <tr className="bg-slate-50/50">
-              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle bg-slate-50/30 w-32">Date</th>
-              <th className="px-6 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle bg-slate-50/30 w-44">Intelligence Data</th>
-              {FUNNEL_STAGES.map((p, i) => (
-                <th key={i} className={cn(
-                  "px-6 py-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center border-r border-border-subtle last:border-r-0 min-w-[140px]",
-                  i === 0 && "bg-slate-50/10"
-                )}>
-                  {p.name}
-                </th>
-              ))}
+              <th className="px-3 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle bg-slate-50/30 w-24">Date</th>
+              <th className="px-3 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle bg-slate-50/30 w-32">Intel Type</th>
+              {FUNNEL_STAGES.map((p, i) => {
+                // Shorten names for the header to save space
+                const shortName = p.name
+                  .replace('Direct Outreach', 'Outreach')
+                  .replace('Initial Qualification', 'Qualify')
+                  .replace('Appointment Secured', 'Appoint')
+                  .replace('Solution Presentation', 'Present')
+                  .replace('Value Proposal', 'Proposal')
+                  .replace('Contract Closing (KGI)', 'Closing');
+
+                return (
+                  <th key={i} className={cn(
+                    "px-2 py-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center border-r border-border-subtle last:border-r-0 min-w-[80px]",
+                    i === 0 && "bg-slate-50/10"
+                  )}>
+                    <div className="flex flex-col items-center">
+                      <span>{shortName}</span>
+                      <span className="text-[8px] text-slate-400 font-medium normal-case tracking-normal mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {p.name.includes('(') ? p.name.split('(')[0] : ''}
+                      </span>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
@@ -134,12 +150,11 @@ export const ComparisonTable = ({ title, entries, label }: ComparisonTableProps)
                 if (entry.created_at) {
                   const d = new Date(entry.created_at);
                   if (viewMode === 'weekly') {
-                    dateStr = `Week of ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                    dateStr = `Wk ${d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}`;
                   } else {
                     dateStr = d.toLocaleDateString('en-US', { 
                       month: 'numeric', 
-                      day: 'numeric', 
-                      year: '2-digit' 
+                      day: 'numeric'
                     });
                   }
                 }
@@ -148,19 +163,19 @@ export const ComparisonTable = ({ title, entries, label }: ComparisonTableProps)
                   <Fragment key={entry.id || entryIndex}>
                     {/* Frequency Row */}
                     <tr className="group hover:bg-slate-50/30 transition-colors">
-                      <td rowSpan={2} className="px-6 py-5 text-xs font-bold text-slate-500 border-r border-border-subtle bg-slate-50/20 text-center">
+                      <td rowSpan={2} className="px-3 py-4 text-[11px] font-bold text-slate-500 border-r border-border-subtle bg-slate-50/20 text-center">
                         {dateStr}
                       </td>
-                      <td className="px-6 py-5 text-xs font-bold text-primary border-r border-border-subtle bg-slate-50/10">Total Frequency</td>
+                      <td className="px-3 py-4 text-[11px] font-bold text-primary border-r border-border-subtle bg-slate-50/10">Frequency</td>
                       {FUNNEL_STAGES.map((p, i) => (
-                        <td key={i} className="px-6 py-5 text-sm tabular-nums text-center font-bold text-primary border-r border-border-subtle last:border-r-0 bg-white group-hover:bg-transparent">
+                        <td key={i} className="px-2 py-4 text-sm tabular-nums text-center font-bold text-primary border-r border-border-subtle last:border-r-0 bg-white group-hover:bg-transparent">
                           {(entry as any)[p.key]}
                         </td>
                       ))}
                     </tr>
                     {/* Conversion Row */}
                     <tr className="group hover:bg-slate-50/30 transition-colors border-b-2 border-slate-100 last:border-b-0">
-                      <td className="px-6 py-5 text-xs font-semibold text-secondary border-r border-border-subtle">Conversion Rate</td>
+                      <td className="px-3 py-4 text-[11px] font-semibold text-secondary border-r border-border-subtle">Yield %</td>
                       {FUNNEL_STAGES.map((p, i) => {
                         const currentVal = (entry as any)[p.key];
                         const prevPhase = FUNNEL_STAGES[i - 1];
@@ -170,16 +185,15 @@ export const ComparisonTable = ({ title, entries, label }: ComparisonTableProps)
                           : 0;
                         
                         return (
-                          <td key={i} className="px-6 py-5 text-sm tabular-nums text-center text-slate-500 border-r border-border-subtle last:border-r-0">
+                          <td key={i} className="px-2 py-4 text-sm tabular-nums text-center text-slate-500 border-r border-border-subtle last:border-r-0">
                             {prevPhase ? (
-                              <div className="flex flex-col items-center gap-1">
+                              <div className="flex flex-col items-center gap-0">
                                 <span className={cn(
                                   "font-bold",
                                   conversion > 50 ? "text-emerald-500" : conversion > 20 ? "text-primary" : "text-slate-400"
                                 )}>
                                   {conversion.toFixed(1)}%
                                 </span>
-                                <span className="text-[9px] text-slate-400 uppercase tracking-tighter">to {p.name.split(' ').pop()}</span>
                               </div>
                             ) : (
                               <span className="text-slate-300">—</span>

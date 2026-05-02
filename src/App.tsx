@@ -22,6 +22,8 @@ export default function App() {
   const [entries, setEntries] = useState<FunnelEntry[]>([]);
   const [targets, setTargets] = useState<FunnelTarget[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     fetchEntries();
@@ -30,9 +32,58 @@ export default function App() {
     const handlePopState = () => {
       setActiveTab(getTabFromPath());
     };
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncOfflineData();
+    };
+    const handleOffline = () => setIsOnline(false);
+
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
+
+  const syncOfflineData = async () => {
+    const unsynced = localStorage.getItem('unsynced_entries');
+    if (!unsynced || isSyncing) return;
+
+    const items: FunnelEntry[] = JSON.parse(unsynced);
+    if (items.length === 0) return;
+
+    setIsSyncing(true);
+    console.log(`Syncing ${items.length} offline entries...`);
+
+    const remainingItems = [];
+    for (const item of items) {
+      try {
+        const res = await fetch('/api/entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item)
+        });
+        if (!res.ok) throw new Error('Failed to sync item');
+      } catch (err) {
+        console.error('Failed to sync item, keeping in queue:', err);
+        remainingItems.push(item);
+      }
+    }
+
+    if (remainingItems.length === 0) {
+      localStorage.removeItem('unsynced_entries');
+    } else {
+      localStorage.setItem('unsynced_entries', JSON.stringify(remainingItems));
+    }
+    
+    setIsSyncing(false);
+    fetchEntries(); // Refresh to get the latest IDs from DB
+  };
 
   const handleTabChange = (tab: any) => {
     setActiveTab(tab);
@@ -59,9 +110,16 @@ export default function App() {
     } catch (err: any) {
       console.warn('API error fetching entries, falling back to localStorage:', err);
       const saved = localStorage.getItem('sales_entries');
-      if (saved) {
-        setEntries(JSON.parse(saved));
+      const unsynced = localStorage.getItem('unsynced_entries');
+      
+      let allEntries = saved ? JSON.parse(saved) : [];
+      if (unsynced) {
+        const unsyncedItems = JSON.parse(unsynced);
+        // Avoid duplicates if we can
+        allEntries = [...unsyncedItems, ...allEntries.filter((se: any) => !unsyncedItems.find((ue: any) => ue.id === se.id))];
       }
+      
+      setEntries(allEntries);
       setDbError('Backend not connected. Using local storage.');
     }
   };
@@ -128,6 +186,19 @@ export default function App() {
   };
 
   const handleSaveEntry = async (formData: FunnelEntry) => {
+    // Generate a temporary ID for local tracking
+    const newEntry = { ...formData, id: crypto.randomUUID() };
+    
+    // Always update local state immediately for UX
+    setEntries(prev => [newEntry, ...prev]);
+
+    if (!isOnline) {
+      console.log('Offline: Queuing entry for sync.');
+      const unsynced = JSON.parse(localStorage.getItem('unsynced_entries') || '[]');
+      localStorage.setItem('unsynced_entries', JSON.stringify([newEntry, ...unsynced]));
+      return;
+    }
+
     try {
       const res = await fetch('/api/entries', {
         method: 'POST',
@@ -139,21 +210,25 @@ export default function App() {
         throw new Error('Failed to save to database');
       }
       
+      // Successfully saved, we can replace the local entry with the server one if needed
+      // (though they should be mostly identical except for ID)
       const savedEntry = await res.json();
-      setEntries(prev => [savedEntry, ...prev]);
-      alert('Data successfully synced to database.');
+      setEntries(prev => prev.map(e => e.id === newEntry.id ? savedEntry : e));
     } catch (err: any) {
-      console.warn('Sync failure, saving to localStorage:', err);
-      const newEntry = { ...formData, id: crypto.randomUUID() };
-      const updatedEntries = [newEntry, ...entries];
-      setEntries(updatedEntries);
-      localStorage.setItem('sales_entries', JSON.stringify(updatedEntries));
-      alert('Backend unavailable. Data saved locally.');
+      console.warn('Sync failure, queuing for later:', err);
+      const unsynced = JSON.parse(localStorage.getItem('unsynced_entries') || '[]');
+      localStorage.setItem('unsynced_entries', JSON.stringify([newEntry, ...unsynced]));
     }
   };
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={handleTabChange} dbError={dbError}>
+    <Layout 
+      activeTab={activeTab} 
+      setActiveTab={handleTabChange} 
+      dbError={dbError}
+      isOnline={isOnline}
+      isSyncing={isSyncing}
+    >
       {dbError && (
         <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-700">
           <AlertCircle size={20} />

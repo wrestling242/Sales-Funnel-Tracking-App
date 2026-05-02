@@ -71,22 +71,22 @@ export const StatsPage = ({ entries, targets, onUpdateTarget }: StatsPageProps) 
         isConversion ? "bg-slate-50/20" : "",
         isEditing ? "bg-slate-100/50" : ""
       )}>
-        <td className="px-8 py-5 border-r border-border-subtle">
+        <td className="px-4 py-4 border-r border-border-subtle">
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className={cn("text-xs font-bold", isConversion ? "text-secondary" : "text-primary")}>{title}</span>
               {isEditable && !isEditing && (
                 <button 
                   onClick={() => setEditingTarget(targetType === 'monthly' ? monthlyTarget : dailyTarget)}
-                  className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                  className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-primary transition-colors lg:opacity-0 lg:group-hover:opacity-100"
                 >
-                  <Edit3 size={12} />
+                  <Edit3 size={16} />
                 </button>
               )}
               {isEditing && (
                 <button 
                   onClick={handleSaveTarget}
-                  className="px-2 py-0.5 rounded bg-primary text-white text-[10px] font-bold hover:bg-slate-800 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-primary text-white text-[10px] font-bold hover:bg-slate-800 transition-colors shadow-sm"
                 >
                   SAVE
                 </button>
@@ -131,7 +131,7 @@ export const StatsPage = ({ entries, targets, onUpdateTarget }: StatsPageProps) 
                 step="0.1"
                 value={val || ''}
                 onChange={(e) => setEditingTarget(prev => prev ? ({ ...prev, [s.key]: parseFloat(e.target.value) || 0 }) : null)}
-                className="w-full bg-white border border-border-subtle rounded-lg px-2 py-1 text-center font-bold text-primary focus:outline-none focus:border-primary text-sm shadow-sm"
+                className="w-full h-10 bg-white border border-border-subtle rounded-lg px-2 text-center font-bold text-primary focus:outline-none focus:border-primary text-sm shadow-sm"
               />
             );
           } else {
@@ -139,7 +139,7 @@ export const StatsPage = ({ entries, targets, onUpdateTarget }: StatsPageProps) 
           }
 
           return (
-            <td key={i} className="px-6 py-5 text-center border-r border-border-subtle last:border-r-0">
+            <td key={i} className="px-2 py-4 text-center border-r border-border-subtle last:border-r-0">
               <span className={cn(
                 "text-sm tabular-nums font-bold",
                 isConversion 
@@ -157,7 +157,7 @@ export const StatsPage = ({ entries, targets, onUpdateTarget }: StatsPageProps) 
   };
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 md:space-y-8 pb-24 md:pb-10">
       <header>
         <h2 className="text-3xl font-semibold tracking-tight text-primary">Overview</h2>
         <p className="text-sm font-medium text-slate-500">Sales Performance Dashboard</p>
@@ -169,16 +169,25 @@ export const StatsPage = ({ entries, targets, onUpdateTarget }: StatsPageProps) 
           <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Funnel KPI Architecture</h3>
           <p className="text-[9px] text-slate-400 font-bold uppercase">Click edit to update targets</p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1100px]">
+        <div className="overflow-x-auto pb-4">
+          <table className="w-full text-left border-collapse min-w-full">
             <thead>
               <tr className="bg-slate-50/50 border-b border-border-subtle">
-                <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle w-56">Intelligence Layer</th>
-                {FUNNEL_STAGES.map((s, i) => (
-                  <th key={i} className="px-6 py-5 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center border-r border-border-subtle last:border-r-0">
-                    {s.name}
-                  </th>
-                ))}
+                <th className="px-4 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-border-subtle w-32 md:w-48">Intelligence Layer</th>
+                {FUNNEL_STAGES.map((s, i) => {
+                  const shortName = s.name
+                    .replace('Direct Outreach', 'Outreach')
+                    .replace('Initial Qualification', 'Qualify')
+                    .replace('Appointment Secured', 'Appoint')
+                    .replace('Solution Presentation', 'Present')
+                    .replace('Value Proposal', 'Proposal')
+                    .replace('Contract Closing (KGI)', 'Closing');
+                  return (
+                    <th key={i} className="px-2 py-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-center border-r border-border-subtle last:border-r-0">
+                      {shortName}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
