@@ -7,9 +7,18 @@ import { EntryPage } from './components/EntryPage';
 import { FunnelPage } from './components/FunnelPage';
 import { SettingsPage } from './components/SettingsPage';
 import { FunnelEntry } from './components/ComparisonTable';
+import { AiSalesAnalystPage } from './components/AiSalesAnalystPage';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'entry' | 'stats' | 'funnel' | 'settings'>('stats');
+  const getTabFromPath = () => {
+    const path = window.location.pathname.replace(/^\//, '');
+    if (['entry', 'stats', 'funnel', 'ai-analyst', 'settings'].includes(path)) {
+      return path as any;
+    }
+    return 'stats';
+  };
+
+  const [activeTab, setActiveTab] = useState<'entry' | 'stats' | 'funnel' | 'ai-analyst' | 'settings'>(getTabFromPath());
   const [entries, setEntries] = useState<FunnelEntry[]>([]);
   const [targets, setTargets] = useState<FunnelTarget[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -17,7 +26,18 @@ export default function App() {
   useEffect(() => {
     fetchEntries();
     fetchTargets();
+
+    const handlePopState = () => {
+      setActiveTab(getTabFromPath());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  const handleTabChange = (tab: any) => {
+    setActiveTab(tab);
+    window.history.pushState({}, '', `/${tab === 'stats' ? '' : tab}`);
+  };
 
   const fetchEntries = async () => {
     try {
@@ -133,7 +153,7 @@ export default function App() {
   };
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} dbError={dbError}>
+    <Layout activeTab={activeTab} setActiveTab={handleTabChange} dbError={dbError}>
       {dbError && (
         <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-700">
           <AlertCircle size={20} />
@@ -160,6 +180,7 @@ export default function App() {
           )}
           {activeTab === 'entry' && <EntryPage onSave={handleSaveEntry} />}
           {activeTab === 'funnel' && <FunnelPage entries={entries} />}
+          {activeTab === 'ai-analyst' && <AiSalesAnalystPage entries={entries} />}
           {activeTab === 'settings' && <SettingsPage entries={entries} />}
         </motion.div>
       </AnimatePresence>

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Edit3, TrendingUp, Settings } from 'lucide-react';
+import { LayoutDashboard, Edit3, TrendingUp, Settings, BrainCircuit } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface NavItemProps {
@@ -60,6 +60,12 @@ export const Layout = ({ children, activeTab, setActiveTab, dbError }: LayoutPro
             onClick={() => setActiveTab('funnel')}
           />
           <NavItem 
+            icon={BrainCircuit} 
+            label="AI Analyst" 
+            active={activeTab === 'ai-analyst'}
+            onClick={() => setActiveTab('ai-analyst')}
+          />
+          <NavItem 
             icon={Settings} 
             label="Settings" 
             active={activeTab === 'settings'} 
@@ -113,6 +119,12 @@ export const Layout = ({ children, activeTab, setActiveTab, dbError }: LayoutPro
             className={cn("p-2 rounded-xl transition-all", activeTab === 'funnel' ? "text-primary bg-slate-100" : "text-slate-400")}
           >
             <TrendingUp size={24} />
+          </button>
+          <button 
+            onClick={() => setActiveTab('ai-analyst')}
+            className={cn("p-2 rounded-xl transition-all", activeTab === 'ai-analyst' ? "text-primary bg-slate-100" : "text-slate-400")}
+          >
+            <BrainCircuit size={24} />
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
