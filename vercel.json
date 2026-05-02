@@ -1,17 +1,7 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "server.ts", "use": "@vercel/node" },
-    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/server.ts" },
-    { "handle": "filesystem" },
-    { "src": "/entry", "dest": "/entry/index.html" },
-    { "src": "/stats", "dest": "/stats/index.html" },
-    { "src": "/funnel", "dest": "/funnel/index.html" },
-    { "src": "/ai-analyst", "dest": "/ai-analyst/index.html" },
-    { "src": "/settings", "dest": "/settings/index.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.ts" },
+    { "source": "/(.*)", "destination": "/" }
   ]
 }
